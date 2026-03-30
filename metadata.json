@@ -1,0 +1,5 @@
+{
+  "name": "Smart Transit Expense Tracker",
+  "description": "A simple and efficient tool to manage monthly transportation expenses with local storage and CSV export.",
+  "requestFramePermissions": []
+}
