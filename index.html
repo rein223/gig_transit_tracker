@@ -91,10 +91,13 @@
                 }
             }, [method, distance]);
 
-            // Clear distance for methods that don't require it
+            // Clear distance and departure for methods that don't require them
             useEffect(() => {
                 if (['電車', 'バス', 'タクシー', '宿泊費'].includes(method)) {
                     setDistance('');
+                }
+                if (method === '宿泊費') {
+                    setDeparture('');
                 }
             }, [method]);
 
@@ -640,7 +643,7 @@
                                             React.createElement('label', { className: "text-[10px] uppercase tracking-widest font-bold text-white/40 ml-1" }, "出発地"),
                                             React.createElement('div', { className: "relative" }, [
                                                 React.createElement(MapPin, { className: "absolute left-4 top-1/2 -translate-y-1/2 text-white/30", size: 16 }),
-                                                React.createElement('input', { type: "text", required: method !== '宿泊費', placeholder: "例: 自宅、オフィス", value: departure, onChange: (e) => setDeparture(e.target.value), className: "w-full pl-12 pr-4 py-3 bg-[#1F1F1F] border-none rounded-2xl focus:ring-2 focus:ring-white transition-all text-white" })
+                                                React.createElement('input', { type: "text", required: method !== '宿泊費', disabled: method === '宿泊費', placeholder: method === '宿泊費' ? '宿泊費のため無効' : "例: 自宅、オフィス", value: departure, onChange: (e) => setDeparture(e.target.value), className: `w-full pl-12 pr-4 py-3 border-none rounded-2xl focus:ring-2 focus:ring-white transition-all ${method === '宿泊費' ? 'bg-white/5 text-white/50 cursor-not-allowed' : 'bg-[#1F1F1F] text-white'}` })
                                             ])
                                         ]),
                                         React.createElement('div', { className: "space-y-2" }, [
