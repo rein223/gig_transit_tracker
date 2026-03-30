@@ -374,33 +374,43 @@
             return React.createElement('div', { className: "min-h-screen bg-[#0A0A0A] text-[#F5F5F3] font-sans selection:bg-white selection:text-black" }, [
                 // Header
                 React.createElement('header', { key: "header", className: "border-b border-white/10 bg-[#0A0A0A]/80 backdrop-blur-md sticky top-0 z-30" }, 
-                    React.createElement('div', { className: "max-w-5xl mx-auto px-6 h-20 flex items-center justify-between" }, [
-                        React.createElement('div', { key: "logo", className: "flex items-center gap-3" }, [
-                            React.createElement('div', { key: "icon", className: "w-10 h-10 bg-white rounded-full flex items-center justify-center text-black" }, 
-                                React.createElement(Navigation, { size: 20 })
-                            ),
-                            React.createElement('h1', { key: "title", className: "text-xl font-semibold tracking-tight" }, "交通費トラッカー")
+                    React.createElement('div', { className: "max-w-7xl mx-auto px-4 md:px-6 py-4 md:h-20 flex flex-col md:flex-row md:items-center justify-between gap-4" }, [
+                        React.createElement('div', { key: "logo", className: "flex items-center justify-between md:justify-start gap-3" }, [
+                            React.createElement('div', { className: "flex items-center gap-3" }, [
+                                React.createElement('div', { key: "icon", className: "w-10 h-10 bg-white rounded-full flex items-center justify-center text-black" }, 
+                                    React.createElement(Navigation, { size: 20 })
+                                ),
+                                React.createElement('h1', { key: "title", className: "text-xl font-semibold tracking-tight" }, "交通費トラッカー")
+                            ]),
+                            // Mobile Month Nav
+                            React.createElement('div', { key: "mobile-month-nav", className: "flex md:hidden items-center bg-white/5 rounded-full p-0.5" }, [
+                                React.createElement('button', { key: "prev", onClick: () => changeMonth(-1), className: "p-1.5 hover:bg-white/10 rounded-full transition-colors" }, React.createElement(ChevronLeft, { size: 16 })),
+                                React.createElement('span', { key: "current", className: "px-2 text-xs font-medium min-w-[80px] text-center" }, `${currentMonth.getFullYear()}/${currentMonth.getMonth() + 1}`),
+                                React.createElement('button', { key: "next", onClick: () => changeMonth(1), className: "p-1.5 hover:bg-white/10 rounded-full transition-colors" }, React.createElement(ChevronRight, { size: 16 }))
+                            ])
                         ]),
-                        React.createElement('div', { key: "actions", className: "flex items-center gap-4" }, [
-                            React.createElement('div', { key: "month-nav", className: "flex items-center bg-white/5 rounded-full p-1" }, [
+                        React.createElement('div', { key: "actions", className: "flex items-center justify-between md:justify-end gap-2 md:gap-4" }, [
+                            React.createElement('div', { key: "desktop-month-nav", className: "hidden md:flex items-center bg-white/5 rounded-full p-1" }, [
                                 React.createElement('button', { key: "prev", onClick: () => changeMonth(-1), className: "p-2 hover:bg-white/10 rounded-full transition-colors" }, React.createElement(ChevronLeft, { size: 18 })),
                                 React.createElement('span', { key: "current", className: "px-4 font-medium min-w-[120px] text-center" }, `${currentMonth.getFullYear()}年 ${currentMonth.getMonth() + 1}月`),
                                 React.createElement('button', { key: "next", onClick: () => changeMonth(1), className: "p-2 hover:bg-white/10 rounded-full transition-colors" }, React.createElement(ChevronRight, { size: 18 }))
                             ]),
-                            React.createElement('button', { key: "export", onClick: exportToCSV, disabled: filteredExpenses.length === 0, className: "flex items-center gap-2 px-4 py-2 bg-[#141414] border border-white/10 rounded-full text-sm font-medium hover:bg-white hover:text-black transition-all disabled:opacity-50 disabled:hover:bg-[#141414] disabled:hover:text-[#F5F5F3]" }, [
-                                React.createElement(Download, { size: 16 }),
-                                "CSV出力"
+                            React.createElement('button', { key: "export", onClick: exportToCSV, disabled: filteredExpenses.length === 0, className: "flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-[#141414] border border-white/10 rounded-full text-xs md:text-sm font-medium hover:bg-white hover:text-black transition-all disabled:opacity-50" }, [
+                                React.createElement(Download, { size: 14 }),
+                                React.createElement('span', { className: "hidden sm:inline" }, "CSV出力"),
+                                React.createElement('span', { className: "sm:hidden" }, "出力")
                             ]),
-                            React.createElement('label', { key: "import", className: "flex items-center gap-2 px-4 py-2 bg-[#141414] border border-white/10 rounded-full text-sm font-medium hover:bg-white hover:text-black transition-all cursor-pointer" }, [
-                                React.createElement(Upload, { size: 16 }),
-                                "CSVインポート",
+                            React.createElement('label', { key: "import", className: "flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-[#141414] border border-white/10 rounded-full text-xs md:text-sm font-medium hover:bg-white hover:text-black transition-all cursor-pointer" }, [
+                                React.createElement(Upload, { size: 14 }),
+                                React.createElement('span', { className: "hidden sm:inline" }, "CSVインポート"),
+                                React.createElement('span', { className: "sm:hidden" }, "読込"),
                                 React.createElement('input', { key: "file", type: "file", accept: ".csv", onChange: importFromCSV, className: "hidden" })
                             ])
                         ])
                     ])
                 ),
 
-                React.createElement('main', { key: "main", className: "max-w-5xl mx-auto px-6 py-12" }, [
+                React.createElement('main', { key: "main", className: "max-w-7xl mx-auto px-6 py-12" }, [
                     // Stats Grid
                     React.createElement('div', { key: "stats", className: "grid grid-cols-1 md:grid-cols-3 gap-6 mb-12" }, [
                         React.createElement(motion.div, { key: "cost", initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, className: "bg-[#141414] p-8 rounded-3xl border border-white/5 shadow-sm" }, [
@@ -587,8 +597,8 @@
                 React.createElement(AnimatePresence, { key: "modals" }, [
                     isClearModalOpen && React.createElement('div', { key: "clear-modal", className: "fixed inset-0 z-[60] flex items-center justify-center p-6" }, [
                         React.createElement(motion.div, { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, onClick: () => setIsClearModalOpen(false), className: "absolute inset-0 bg-black/80 backdrop-blur-md" }),
-                        React.createElement(motion.div, { initial: { opacity: 0, scale: 0.9, y: 20 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.9, y: 20 }, className: "relative w-full max-w-md bg-[#141414] border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden" }, 
-                            React.createElement('div', { className: "p-10 text-center" }, [
+                        React.createElement(motion.div, { initial: { opacity: 0, scale: 0.9, y: 20 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.9, y: 20 }, className: "relative w-full max-w-md max-h-[90vh] bg-[#141414] border border-white/10 rounded-[2.5rem] shadow-2xl overflow-y-auto" }, 
+                            React.createElement('div', { className: "p-6 md:p-10 text-center" }, [
                                 React.createElement('div', { className: "w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6" }, React.createElement(Trash2, { size: 32, className: "text-red-500" })),
                                 React.createElement('h3', { className: "text-xl font-bold mb-2" }, "全データを削除しますか？"),
                                 React.createElement('p', { className: "text-white/40 text-sm mb-8 leading-relaxed" }, ["これまでに登録されたすべてのレコードが完全に削除されます。", React.createElement('br'), "この操作は取り消すことができません。"]),
@@ -602,8 +612,8 @@
 
                     isFormOpen && React.createElement('div', { key: "form-modal", className: "fixed inset-0 z-50 flex items-center justify-center p-6" }, [
                         React.createElement(motion.div, { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, onClick: () => setIsFormOpen(false), className: "absolute inset-0 bg-black/60 backdrop-blur-sm" }),
-                        React.createElement(motion.div, { initial: { opacity: 0, scale: 0.95, y: 20 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.95, y: 20 }, className: "relative w-full max-w-lg bg-[#141414] rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/10" }, 
-                            React.createElement('div', { className: "p-10" }, [
+                        React.createElement(motion.div, { initial: { opacity: 0, scale: 0.95, y: 20 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.95, y: 20 }, className: "relative w-full max-w-lg max-h-[90vh] bg-[#141414] rounded-[2.5rem] shadow-2xl overflow-y-auto border border-white/10" }, 
+                            React.createElement('div', { className: "p-6 md:p-10" }, [
                                 React.createElement('div', { className: "flex items-center justify-between mb-8" }, [
                                     React.createElement('h2', { className: "text-2xl font-bold tracking-tight" }, "新規交通費登録"),
                                     method === '走行距離' && React.createElement('span', { className: "px-3 py-1 bg-white text-black text-[10px] font-bold rounded-full uppercase tracking-widest" }, `自動計算中 (¥${CAR_REIMBURSEMENT_RATE}/km)`)
