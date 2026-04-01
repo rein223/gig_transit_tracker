@@ -1,698 +1,865 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Transit Expense Tracker</title>
-    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
-    <style type="text/tailwindcss">
-        @theme {
-            --color-background: #0A0A0A;
-            --color-foreground: #F5F5F3;
-        }
-        body {
-            background-color: var(--color-background);
-            color: var(--color-foreground);
-        }
-        /* Custom scrollbar for dark theme */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #0A0A0A;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #2A2A2A;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #3A3A3A;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作業記録管理</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'Hiragino Sans', sans-serif;
+    background: #f0f2f5;
+    color: #333;
+    min-height: 100vh;
+  }
+  header {
+    background: #1a73e8;
+    color: white;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header h1 { font-size: 1.2rem; font-weight: 600; }
+  header span { font-size: 0.85rem; opacity: 0.85; }
+
+  .container { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+
+  .panel {
+    background: white;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+  .panel-title { font-size: 0.9rem; color: #777; font-weight: 600; }
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .bulk-actions { display: flex; gap: 8px; }
+
+  /* 作業情報フォーム */
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .info-field { display: flex; flex-direction: column; gap: 4px; }
+  .info-field label { font-size: 0.78rem; color: #888; font-weight: 600; }
+  .info-field input {
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+  }
+  .info-field input:focus { outline: none; border-color: #1a73e8; }
+
+  /* 作業者追加 */
+  .add-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 12px;
+  }
+  .add-row input {
+    flex: 1;
+    min-width: 130px;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.9rem;
+  }
+  .add-row input:focus { outline: none; border-color: #1a73e8; }
+
+  .btn {
+    padding: 7px 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { opacity: 0.82; }
+  .btn-add    { background: #1a73e8; color: white; }
+  .btn-start  { background: #34a853; color: white; }
+  .btn-end    { background: #ea4335; color: white; }
+  .btn-csv    { background: #fbbc04; color: #333; }
+  .btn-clear  { background: #e8eaed; color: #555; }
+  .btn-outline{ background: white; color: #555; border: 1px solid #ccc; }
+  .btn-remove { background: transparent; color: #ccc; border: none; cursor: pointer; font-size: 1rem; padding: 2px 6px; border-radius: 4px; }
+  .btn-remove:hover { color: #ea4335; background: #fce8e6; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* 作業者テーブル */
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th {
+    background: #f8f9fa;
+    padding: 9px 10px;
+    text-align: left;
+    border-bottom: 2px solid #e0e0e0;
+    color: #666;
+    font-weight: 600;
+    font-size: 0.82rem;
+  }
+  td { padding: 10px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr.working-row td { background: #f0faf3; }
+
+  .status-chip {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .status-idle    { background: #e8eaed; color: #666; }
+  .status-working { background: #e6f4ea; color: #1e7e34; }
+
+  .timer-cell { font-size: 0.8rem; color: #888; min-width: 110px; }
+  .action-cell { display: flex; gap: 6px; align-items: center; }
+  .empty-row td { text-align: center; color: #aaa; padding: 20px; }
+
+  /* ログテーブル */
+  .log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .log-actions { display: flex; gap: 8px; }
+  .duration-chip {
+    background: #e8f0fe;
+    color: #1a73e8;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-weight: 500;
+  }
+  #emptyMsg { text-align: center; color: #aaa; padding: 20px; font-size: 0.88rem; }
+
+  /* サイン（プレビュー） */
+  .sign-area { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  .sign-label { font-size: 0.78rem; color: #888; font-weight: 600; }
+  .sign-preview-wrap {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    background: #fafafa;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ccc;
+    font-size: 0.85rem;
+  }
+  .sign-preview { max-width: 50%; max-height: 60px; border-radius: 6px; display: block; }
+  .sign-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* フルスクリーン署名モーダル */
+  #signModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    z-index: 9999;
+    flex-direction: column;
+  }
+  #signModal.open { display: flex; }
+  .sign-modal-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: #1a73e8;
+    color: white;
+    flex-shrink: 0;
+  }
+  .sign-modal-bar span { font-size: 1rem; font-weight: 600; }
+  .sign-modal-bar .bar-actions { display: flex; gap: 8px; }
+  .btn-white { background: white; color: #1a73e8; border: none; border-radius: 6px; padding: 7px 16px; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+  .btn-ghost { background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 6px; padding: 7px 14px; font-size: 0.9rem; cursor: pointer; }
+  #signModal canvas {
+    flex: 1;
+    display: block;
+    width: 100%;
+    cursor: crosshair;
+    touch-action: none;
+    background: #fff;
+  }
+  .sign-modal-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ddd;
+    font-size: 1rem;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .sign-modal-canvas-wrap { position: relative; flex: 1; display: flex; flex-direction: column; }
+
+  @media (max-width: 600px) {
+    td, th { padding: 8px 6px; font-size: 0.82rem; }
+    .btn { padding: 8px 10px; font-size: 0.82rem; }
+    .action-cell { flex-wrap: wrap; }
+  }
+
+  /* 印刷 */
+  #printArea { display: none; }
+
+  @media print {
+    @page { size: A4 portrait; margin: 15mm 15mm 15mm 15mm; }
+    * { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body > *:not(#printArea) { display: none !important; }
+    #printArea {
+      display: block !important;
+      font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+      font-size: 10pt;
+      color: #000;
+    }
+    #printArea .p-title {
+      font-size: 16pt;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 14pt;
+      border-bottom: 2pt solid #000;
+      padding-bottom: 6pt;
+    }
+    #printArea .p-section { margin-bottom: 14pt; }
+    #printArea .p-section-title {
+      font-size: 10pt;
+      font-weight: bold;
+      border-bottom: 1pt solid #000;
+      padding: 3pt 0;
+      margin-bottom: 6pt;
+    }
+    #printArea .p-info-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6pt;
+    }
+    #printArea .p-info-item { border: 0.5pt solid #aaa; padding: 4pt 6pt; }
+    #printArea .p-info-label { font-size: 8pt; color: #555; margin-bottom: 2pt; }
+    #printArea .p-info-value { font-size: 10pt; font-weight: bold; }
+    #printArea table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+    #printArea th {
+      border: 0.5pt solid #aaa;
+      padding: 4pt 5pt;
+      text-align: left;
+      font-weight: bold;
+    }
+    #printArea td {
+      border: 0.5pt solid #aaa;
+      padding: 4pt 5pt;
+    }
+    #printArea .p-sign-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 20pt;
+      margin-top: 6pt;
+    }
+    #printArea .p-sign-box {
+      border: 0.5pt solid #aaa;
+      width: 240pt;
+      height: 80pt;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #printArea .p-sign-box img { max-width: 100%; max-height: 100%; }
+    #printArea .p-sign-label { font-size: 8pt; color: #555; margin-bottom: 3pt; }
+    #printArea .p-footer {
+      margin-top: 20pt;
+      font-size: 8pt;
+      color: #888;
+      text-align: right;
+    }
+  }
+</style>
 </head>
 <body>
-    <div id="root"></div>
 
-    <script type="importmap">
-    {
-        "imports": {
-            "react": "https://esm.sh/react@19",
-            "react-dom": "https://esm.sh/react-dom@19",
-            "react-dom/client": "https://esm.sh/react-dom@19/client",
-            "lucide-react": "https://esm.sh/lucide-react",
-            "motion/react": "https://esm.sh/motion/react"
-        }
-    }
-    </script>
+<header>
+  <h1>作業記録管理</h1>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span id="currentDate"></span>
+    <button class="btn" onclick="printReport()"
+      style="background:white;color:#1a73e8;font-weight:600;padding:6px 14px;font-size:0.85rem;">
+      🖨 印刷
+    </button>
+  </div>
+</header>
 
-    <script type="module">
-        import React, { useState, useEffect, useMemo } from 'react';
-        import ReactDOM from 'react-dom/client';
-        import { 
-            Plus, Download, Upload, Trash2, ChevronLeft, ChevronRight, 
-            Train, Bus, Car, Navigation, MoreHorizontal, Calendar as CalendarIcon, 
-            MapPin, JapaneseYen, Route, Bed, ArrowRight, Tag, FileText, BarChart3, Copy, Check 
-        } from 'lucide-react';
-        import { motion, AnimatePresence } from 'motion/react';
+<div id="printArea"></div>
 
-        // --- Constants & Types ---
-        const TRANSPORTATION_METHODS = [
-            '電車', 'バス', 'タクシー', '走行距離', '高速道路利用料金', '宿泊費', 'その他'
-        ];
-        const STORAGE_KEY = 'transit_expenses_v1';
-        const CAR_REIMBURSEMENT_RATE = 20; // 20円/km
-        const RECEIPT_REQUIRED_METHODS = ['タクシー', '高速道路利用料金', '宿泊費', 'その他'];
+<div class="container">
 
-        // --- App Component ---
-        function App() {
-            const [expenses, setExpenses] = useState([]);
-            const [currentMonth, setCurrentMonth] = useState(new Date());
-            const [isFormOpen, setIsFormOpen] = useState(false);
-            const [isClearModalOpen, setIsClearModalOpen] = useState(false);
-            
-            // Form state
-            const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-            const [departure, setDeparture] = useState('');
-            const [destination, setDestination] = useState('');
-            const [method, setMethod] = useState('電車');
-            const [distance, setDistance] = useState('');
-            const [cost, setCost] = useState('');
-            const [tagId, setTagId] = useState('');
-            const [note, setNote] = useState('');
-            const [viewMode, setViewMode] = useState('list');
-            const [filterTag, setFilterTag] = useState(null);
-            const [isCopied, setIsCopied] = useState(false);
+  <!-- 作業情報 -->
+  <div class="panel">
+    <div class="panel-title">作業情報</div>
+    <div class="info-grid">
+      <div class="info-field">
+        <label>作業日</label>
+        <input type="date" id="infoDate" />
+      </div>
+      <div class="info-field">
+        <label>作業場所</label>
+        <input type="text" id="infoLocation" placeholder="例：〇〇ビル 3F" />
+      </div>
+      <div class="info-field">
+        <label>リーダー名</label>
+        <input type="text" id="infoLeader" placeholder="リーダー氏名" />
+      </div>
+    </div>
+  </div>
 
-            // Auto-calculate cost for Mileage
-            useEffect(() => {
-                if (method === '走行距離' && distance) {
-                    const calculated = Math.round(parseFloat(distance) * CAR_REIMBURSEMENT_RATE);
-                    setCost(calculated.toString());
-                }
-            }, [method, distance]);
+  <!-- 作業者追加 -->
+  <div class="panel">
+    <div class="panel-title">作業者を追加</div>
+    <div class="add-row">
+      <input type="text" id="inputName"   placeholder="作業者名 *" />
+      <input type="text" id="inputVendor" placeholder="業者名（任意）" />
+      <button class="btn btn-add" onclick="addWorker()">追加</button>
+    </div>
+  </div>
 
-            // Clear distance and departure for methods that don't require them
-            useEffect(() => {
-                if (['電車', 'バス', 'タクシー', '宿泊費'].includes(method)) {
-                    setDistance('');
-                }
-                if (method === '宿泊費') {
-                    setDeparture('');
-                }
-            }, [method]);
+  <!-- 作業者一覧（行表示） -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">作業者一覧</div>
+      <div class="bulk-actions">
+        <button class="btn btn-start" onclick="startAll()">▶ 全員開始</button>
+        <button class="btn btn-end"   onclick="endAll()">■ 全員終了</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>業者名</th>
+          <th>作業者名</th>
+          <th>状態</th>
+          <th>経過時間</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="workersBody"></tbody>
+    </table>
+  </div>
 
-            // Load data
-            useEffect(() => {
-                const saved = localStorage.getItem(STORAGE_KEY);
-                if (saved) {
-                    try {
-                        setExpenses(JSON.parse(saved));
-                    } catch (e) {
-                        console.error('Failed to load expenses', e);
-                    }
-                }
-            }, []);
+  <!-- 記録ログ -->
+  <div class="panel">
+    <div class="log-header">
+      <div class="panel-title" style="margin:0">作業記録ログ</div>
+      <div class="log-actions">
+        <button class="btn btn-csv"   onclick="downloadCSV()">CSVダウンロード</button>
+        <button class="btn btn-clear" onclick="clearLogs()">ログ削除</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>業者名</th>
+          <th>作業者名</th>
+          <th>開始時刻</th>
+          <th>終了時刻</th>
+          <th>作業時間</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="logBody"></tbody>
+    </table>
+    <div id="emptyMsg">記録はありません</div>
+  </div>
 
-            // Save data
-            useEffect(() => {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
-            }, [expenses]);
+  <!-- サイン -->
+  <div class="panel">
+    <div class="panel-title">サイン</div>
+    <div class="sign-area">
+      <div class="sign-preview-wrap" id="signPreviewWrap">サインなし</div>
+      <div class="sign-actions">
+        <button class="btn btn-add"     onclick="openSignModal()">署名する</button>
+        <button class="btn btn-outline" onclick="deleteSign()">サイン削除</button>
+      </div>
+    </div>
+  </div>
 
-            const filteredExpenses = useMemo(() => {
-                return expenses.filter(e => {
-                    const d = new Date(e.date);
-                    const monthMatch = d.getMonth() === currentMonth.getMonth() && d.getFullYear() === currentMonth.getFullYear();
-                    const tagMatch = filterTag ? e.tagId === filterTag : true;
-                    return monthMatch && tagMatch;
-                }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-            }, [expenses, currentMonth, filterTag]);
+</div>
 
-            const totalCost = useMemo(() => {
-                return filteredExpenses.reduce((sum, e) => sum + e.cost, 0);
-            }, [filteredExpenses]);
+<!-- 時刻編集モーダル -->
+<div id="logEditOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:8000;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:12px;padding:24px;width:90%;max-width:360px;box-shadow:0 4px 20px rgba(0,0,0,0.2);">
+    <div style="font-weight:600;font-size:1rem;margin-bottom:16px;">時刻を修正</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <label style="font-size:0.78rem;color:#888;font-weight:600;display:block;margin-bottom:4px;">開始時刻</label>
+        <input type="datetime-local" id="editStart" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;" />
+      </div>
+      <div>
+        <label style="font-size:0.78rem;color:#888;font-weight:600;display:block;margin-bottom:4px;">終了時刻</label>
+        <input type="datetime-local" id="editEnd" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;" />
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-clear" onclick="closeLogEdit()">キャンセル</button>
+      <button class="btn btn-add"   onclick="saveLogEdit()">保存</button>
+    </div>
+  </div>
+</div>
 
-            const totalDistance = useMemo(() => {
-                return filteredExpenses.reduce((sum, e) => sum + e.distance, 0);
-            }, [filteredExpenses]);
+<!-- フルスクリーン署名モーダル -->
+<div id="signModal">
+  <div class="sign-modal-bar">
+    <span>署名</span>
+    <div class="bar-actions">
+      <button class="btn-ghost" onclick="closeSignModal()">キャンセル</button>
+      <button class="btn-white" onclick="confirmSign()">完了</button>
+    </div>
+  </div>
+  <div class="sign-modal-canvas-wrap">
+    <canvas id="signCanvas"></canvas>
+    <div class="sign-modal-hint" id="signHint">ここに署名してください</div>
+  </div>
+</div>
 
-            const tagSummaries = useMemo(() => {
-                const summaries = {};
-                filteredExpenses.forEach(e => {
-                    const tag = e.tagId || '未分類';
-                    if (!summaries[tag]) {
-                        summaries[tag] = { cost: 0, distance: 0, count: 0 };
-                    }
-                    summaries[tag].cost += e.cost;
-                    summaries[tag].distance += e.distance;
-                    summaries[tag].count += 1;
-                });
-                return Object.entries(summaries).map(([tag, data]) => ({ tag, ...data }));
-            }, [filteredExpenses]);
+<script>
+// ---- State ----
+let workers = JSON.parse(localStorage.getItem('wm_workers') || '[]');
+let logs    = JSON.parse(localStorage.getItem('wm_logs')    || '[]');
+let info    = JSON.parse(localStorage.getItem('wm_info')    || '{}');
+let timerIntervals = {};
 
-            const dateSummaries = useMemo(() => {
-                const summaries = {};
-                filteredExpenses.forEach(e => {
-                    if (!summaries[e.date]) {
-                        summaries[e.date] = { cost: 0, count: 0 };
-                    }
-                    summaries[e.date].cost += e.cost;
-                    summaries[e.date].count += 1;
-                });
-                return Object.entries(summaries).sort((a, b) => a[0].localeCompare(b[0]));
-            }, [filteredExpenses]);
+// ---- Init ----
+const today = new Date();
+document.getElementById('currentDate').textContent =
+  today.toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
 
-            const monthlySummaries = useMemo(() => {
-                const summaries = {};
-                expenses.forEach(e => {
-                    const d = new Date(e.date);
-                    const key = `${d.getFullYear()}年 ${d.getMonth() + 1}月`;
-                    if (!summaries[key]) {
-                        summaries[key] = { cost: 0, count: 0 };
-                    }
-                    summaries[key].cost += e.cost;
-                    summaries[key].count += 1;
-                });
-                return Object.entries(summaries).sort((a, b) => {
-                    const [yearA, monthA] = a[0].split('年 ').map(s => parseInt(s));
-                    const [yearB, monthB] = b[0].split('年 ').map(s => parseInt(s));
-                    if (yearA !== yearB) return yearB - yearA;
-                    return monthB - monthA;
-                });
-            }, [expenses]);
+// 作業情報の復元
+document.getElementById('infoDate').value     = info.date     || today.toISOString().slice(0,10);
+document.getElementById('infoLocation').value = info.location || '';
+document.getElementById('infoLeader').value   = info.leader   || '';
 
-            const uniqueTags = useMemo(() => {
-                const tags = new Set();
-                expenses.forEach(e => {
-                    if (e.tagId) tags.add(e.tagId);
-                });
-                return Array.from(tags).sort();
-            }, [expenses]);
+['infoDate','infoLocation','infoLeader'].forEach(id => {
+  document.getElementById(id).addEventListener('input', saveInfo);
+});
+document.getElementById('inputName').addEventListener('keydown',   e => { if(e.key==='Enter') addWorker(); });
+document.getElementById('inputVendor').addEventListener('keydown', e => { if(e.key==='Enter') addWorker(); });
 
-            const groupedExpenses = useMemo(() => {
-                const groups = {};
-                filteredExpenses.forEach(e => {
-                    if (!groups[e.date]) groups[e.date] = [];
-                    groups[e.date].push(e);
-                });
-                return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
-            }, [filteredExpenses]);
+// ---- Sign / Fullscreen Modal ----
+const canvas = document.getElementById('signCanvas');
+const ctx    = canvas.getContext('2d');
+let drawing  = false;
+let lastX = 0, lastY = 0;
+let signDirty = false;
 
-            const handleAddExpense = (e) => {
-                e.preventDefault();
-                const newExpense = {
-                    id: crypto.randomUUID(),
-                    date,
-                    departure,
-                    destination,
-                    method,
-                    distance: parseFloat(distance) || 0,
-                    cost: parseInt(cost) || 0,
-                    tagId,
-                    note
-                };
-                setExpenses([...expenses, newExpense]);
-                setIsFormOpen(false);
-                setDeparture('');
-                setDestination('');
-                setDistance('');
-                setCost('');
-                setTagId('');
-                setNote('');
-            };
+function setupCanvas() {
+  const ratio = window.devicePixelRatio || 1;
+  const w = canvas.parentElement.clientWidth;
+  const h = canvas.parentElement.clientHeight;
+  canvas.width  = w * ratio;
+  canvas.height = h * ratio;
+  canvas.style.width  = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(ratio, ratio);
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth   = 3;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+}
 
-            const handleDeleteExpense = (id) => {
-                setExpenses(expenses.filter(e => e.id !== id));
-            };
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const src  = e.touches ? e.touches[0] : e;
+  return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+}
 
-            const handleClearAll = () => {
-                setExpenses([]);
-                setIsClearModalOpen(false);
-            };
+canvas.addEventListener('mousedown',  e => { drawing = true; const p = getPos(e); lastX = p.x; lastY = p.y; });
+canvas.addEventListener('mousemove',  e => { if (!drawing) return; drawStroke(e); });
+canvas.addEventListener('mouseup',    () => { drawing = false; ctx.beginPath(); });
+canvas.addEventListener('mouseleave', () => { drawing = false; ctx.beginPath(); });
+canvas.addEventListener('touchstart',  e => { e.preventDefault(); drawing = true; const p = getPos(e); lastX = p.x; lastY = p.y; }, { passive: false });
+canvas.addEventListener('touchmove',   e => { e.preventDefault(); if (!drawing) return; drawStroke(e); }, { passive: false });
+canvas.addEventListener('touchend',    e => { e.preventDefault(); drawing = false; ctx.beginPath(); },    { passive: false });
 
-            const exportToCSV = () => {
-                const headers = ['日付', '出発地', '目的地', '移動手段', '距離 (km)', '金額 (円)', 'タグID', '備考', '領収書'];
-                const rows = filteredExpenses.map(e => [
-                    e.date,
-                    `"${e.departure}"`,
-                    `"${e.destination}"`,
-                    e.method,
-                    `${e.distance} km`,
-                    `${e.cost} 円`,
-                    `"${e.tagId || ''}"`,
-                    `"${e.note || ''}"`,
-                    RECEIPT_REQUIRED_METHODS.includes(e.method) ? '要' : '不要'
-                ]);
-                
-                const csvContent = [
-                    headers.join(','),
-                    ...rows.map(r => r.join(','))
-                ].join('\n');
+function drawStroke(e) {
+  const p = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+  lastX = p.x; lastY = p.y;
+  signDirty = true;
+  document.getElementById('signHint').style.display = 'none';
+}
 
-                const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.setAttribute('href', url);
-                link.setAttribute('download', `交通費精算_${currentMonth.getFullYear()}年${currentMonth.getMonth() + 1}月.csv`);
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            };
-            
-            const importFromCSV = (event) => {
-                const file = event.target.files?.[0];
-                if (!file) return;
+function openSignModal() {
+  // スクロール禁止
+  document.body.style.overflow = 'hidden';
+  // スマホで画面回転に対応するためorientationchangeを待つ
+  const modal = document.getElementById('signModal');
+  modal.classList.add('open');
+  signDirty = false;
+  document.getElementById('signHint').style.display = '';
+  // レイアウト確定後にcanvasをセットアップ
+  requestAnimationFrame(() => { requestAnimationFrame(() => { setupCanvas(); }); });
+}
 
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const content = e.target?.result;
-                    if (!content) return;
+function closeSignModal() {
+  document.getElementById('signModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
 
-                    const lines = content.split('\n');
-                    if (lines.length < 2) return;
+function confirmSign() {
+  if (!signDirty) { alert('サインを書いてください'); return; }
+  const dataUrl  = canvas.toDataURL('image/png');
+  const signedAt = new Date().toISOString();
+  localStorage.setItem('wm_sign',      dataUrl);
+  localStorage.setItem('wm_signedAt',  signedAt);
+  showSavedSign(dataUrl, signedAt);
+  closeSignModal();
+}
 
-                    const newExpenses = [];
-                    for (let i = 1; i < lines.length; i++) {
-                        const line = lines[i].trim();
-                        if (!line) continue;
+function deleteSign() {
+  if (!confirm('サインを削除しますか？')) return;
+  localStorage.removeItem('wm_sign');
+  localStorage.removeItem('wm_signedAt');
+  const wrap = document.getElementById('signPreviewWrap');
+  wrap.innerHTML = 'サインなし';
+}
 
-                        const parts = [];
-                        let currentPart = '';
-                        let inQuotes = false;
-                        for (let j = 0; j < line.length; j++) {
-                            const char = line[j];
-                            if (char === '"') {
-                                inQuotes = !inQuotes;
-                            } else if (char === ',' && !inQuotes) {
-                                parts.push(currentPart);
-                                currentPart = '';
-                            } else {
-                                currentPart += char;
-                            }
-                        }
-                        parts.push(currentPart);
+function showSavedSign(dataUrl, signedAt) {
+  const wrap = document.getElementById('signPreviewWrap');
+  const dateStr = signedAt
+    ? `<div style="font-size:0.75rem;color:#888;margin-top:4px;">署名日時：${new Date(signedAt).toLocaleString('ja-JP')}</div>`
+    : '';
+  wrap.innerHTML = `<img class="sign-preview" src="${dataUrl}" />${dateStr}`;
+}
 
-                        if (parts.length >= 6) {
-                            const [date, departure, destination, method, distance, cost, tagId, note] = parts;
-                            newExpenses.push({
-                                id: Math.random().toString(36).substr(2, 9),
-                                date: date.trim(),
-                                departure: departure.trim(),
-                                destination: destination.trim(),
-                                method: method.trim(),
-                                distance: parseFloat(distance) || 0,
-                                cost: parseInt(cost) || 0,
-                                tagId: tagId?.trim() || undefined,
-                                note: note?.trim() || undefined
-                            });
-                        }
-                    }
+// 保存済みサインの読み込み
+const savedSign     = localStorage.getItem('wm_sign');
+const savedSignedAt = localStorage.getItem('wm_signedAt');
+if (savedSign) showSavedSign(savedSign, savedSignedAt);
 
-                    if (newExpenses.length > 0) {
-                        setExpenses(prev => [...prev, ...newExpenses]);
-                        alert(`${newExpenses.length}件のデータをインポートしました。`);
-                    }
-                    event.target.value = '';
-                };
-                reader.readAsText(file);
-            };
+// 画面回転時にcanvasリサイズ
+window.addEventListener('orientationchange', () => {
+  if (document.getElementById('signModal').classList.contains('open')) {
+    setTimeout(setupCanvas, 300);
+  }
+});
+window.addEventListener('resize', () => {
+  if (document.getElementById('signModal').classList.contains('open')) setupCanvas();
+});
 
-            const changeMonth = (offset) => {
-                const next = new Date(currentMonth);
-                next.setMonth(next.getMonth() + offset);
-                setCurrentMonth(next);
-            };
+// ---- Info ----
+function saveInfo() {
+  info = {
+    date:     document.getElementById('infoDate').value,
+    location: document.getElementById('infoLocation').value,
+    leader:   document.getElementById('infoLeader').value,
+  };
+  localStorage.setItem('wm_info', JSON.stringify(info));
+}
 
-            const copySummaryToClipboard = () => {
-                const monthStr = `${currentMonth.getFullYear()}年${currentMonth.getMonth() + 1}月`;
-                const expensesWithTags = filteredExpenses.filter(e => e.tagId);
-                
-                if (expensesWithTags.length === 0) {
-                    alert('タグに紐づいたデータがありません。');
-                    return;
-                }
+// ---- Workers ----
+function addWorker() {
+  const name   = document.getElementById('inputName').value.trim();
+  const vendor = document.getElementById('inputVendor').value.trim();
+  if (!name) { alert('作業者名を入力してください'); return; }
+  workers.push({ id: Date.now(), name, vendor, working: false, startTime: null });
+  save();
+  render();
+  document.getElementById('inputName').value = '';
+  document.getElementById('inputVendor').value = '';
+  document.getElementById('inputName').focus();
+}
 
-                const taggedTotalCost = expensesWithTags.reduce((sum, e) => sum + e.cost, 0);
-                const taggedTotalDistance = expensesWithTags.reduce((sum, e) => sum + e.distance, 0);
+function removeWorker(id) {
+  if (workers.find(w => w.id === id)?.working) {
+    if (!confirm('作業中です。削除しますか？')) return;
+  }
+  clearInterval(timerIntervals[id]);
+  delete timerIntervals[id];
+  workers = workers.filter(w => w.id !== id);
+  save();
+  render();
+}
 
-                let text = `【交通費精算レポート（タグ別明細） - ${monthStr}】\n`;
-                text += `タグ紐付け合計金額: ${taggedTotalCost.toLocaleString()} 円\n`;
-                text += `タグ紐付け合計距離: ${taggedTotalDistance.toFixed(1)} km\n`;
-                text += `対象件数: ${expensesWithTags.length} 件\n\n`;
-                
-                tagSummaries.forEach(s => {
-                    const tagExpenses = expensesWithTags.filter(e => e.tagId === s.tag);
-                    if (tagExpenses.length > 0) {
-                        text += `■ タグ: ${s.tag}\n`;
-                        text += `   小計: ${s.cost.toLocaleString()} 円 (${s.count}件)\n`;
-                        text += `   明細:\n`;
-                        tagExpenses.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).forEach(e => {
-                            const distanceStr = e.distance > 0 ? ` (${e.distance.toFixed(1)}km)` : '';
-                            const receiptStr = RECEIPT_REQUIRED_METHODS.includes(e.method) ? ' [領収書要]' : '';
-                            text += `   - ${e.date} | ${e.departure} → ${e.destination} | ${e.method}${distanceStr}${receiptStr} | ${e.cost.toLocaleString()}円\n`;
-                            if (e.note) text += `     備考: ${e.note}\n`;
-                        });
-                        text += `\n`;
-                    }
-                });
+function startWork(id) {
+  const w = workers.find(w => w.id === id);
+  if (!w || w.working) return;
+  w.working   = true;
+  w.startTime = new Date().toISOString();
+  save();
+  render();
+  startTimer(id);
+}
 
-                navigator.clipboard.writeText(text).then(() => {
-                    setIsCopied(true);
-                    setTimeout(() => setIsCopied(false), 2000);
-                });
-            };
+function endWork(id) {
+  const w = workers.find(w => w.id === id);
+  if (!w || !w.working) return;
+  const endTime  = new Date().toISOString();
+  const duration = calcDuration(w.startTime, endTime);
+  logs.unshift({ vendor: w.vendor, name: w.name, startTime: w.startTime, endTime, duration });
+  w.working   = false;
+  w.startTime = null;
+  clearInterval(timerIntervals[id]);
+  delete timerIntervals[id];
+  save();
+  render();
+}
 
-            const getMethodIcon = (m) => {
-                switch (m) {
-                    case '電車': return React.createElement(Train, { size: 16 });
-                    case 'バス': return React.createElement(Bus, { size: 16 });
-                    case 'タクシー': return React.createElement(Car, { size: 16, className: "text-yellow-500" });
-                    case '走行距離': return React.createElement(Car, { size: 16 });
-                    case '高速道路利用料金': return React.createElement(Route, { size: 16 });
-                    case '宿泊費': return React.createElement(Bed, { size: 16 });
-                    default: return React.createElement(MoreHorizontal, { size: 16 });
-                }
-            };
+function startAll() { workers.forEach(w => { if (!w.working) startWork(w.id); }); }
+function endAll()   { workers.forEach(w => { if (w.working)  endWork(w.id);  }); }
 
-            return React.createElement('div', { className: "min-h-screen bg-[#0A0A0A] text-[#F5F5F3] font-sans selection:bg-white selection:text-black" }, [
-                // Header
-                React.createElement('header', { key: "header", className: "border-b border-white/10 bg-[#0A0A0A]/80 backdrop-blur-md sticky top-0 z-30" }, 
-                    React.createElement('div', { className: "max-w-7xl mx-auto px-4 md:px-6 py-4 md:h-20 flex flex-col md:flex-row md:items-center justify-between gap-4" }, [
-                        React.createElement('div', { key: "logo", className: "flex items-center justify-between md:justify-start gap-3" }, [
-                            React.createElement('div', { className: "flex items-center gap-3" }, [
-                                React.createElement('div', { key: "icon", className: "w-10 h-10 bg-white rounded-full flex items-center justify-center text-black" }, 
-                                    React.createElement(Navigation, { size: 20 })
-                                ),
-                                React.createElement('h1', { key: "title", className: "text-xl font-semibold tracking-tight" }, "交通費トラッカー")
-                            ]),
-                            // Mobile Month Nav
-                            React.createElement('div', { key: "mobile-month-nav", className: "flex md:hidden items-center bg-white/5 rounded-full p-0.5" }, [
-                                React.createElement('button', { key: "prev", onClick: () => changeMonth(-1), className: "p-1.5 hover:bg-white/10 rounded-full transition-colors" }, React.createElement(ChevronLeft, { size: 16 })),
-                                React.createElement('span', { key: "current", className: "px-2 text-xs font-medium min-w-[80px] text-center" }, `${currentMonth.getFullYear()}/${currentMonth.getMonth() + 1}`),
-                                React.createElement('button', { key: "next", onClick: () => changeMonth(1), className: "p-1.5 hover:bg-white/10 rounded-full transition-colors" }, React.createElement(ChevronRight, { size: 16 }))
-                            ])
-                        ]),
-                        React.createElement('div', { key: "actions", className: "flex items-center justify-between md:justify-end gap-2 md:gap-4" }, [
-                            React.createElement('div', { key: "desktop-month-nav", className: "hidden md:flex items-center bg-white/5 rounded-full p-1" }, [
-                                React.createElement('button', { key: "prev", onClick: () => changeMonth(-1), className: "p-2 hover:bg-white/10 rounded-full transition-colors" }, React.createElement(ChevronLeft, { size: 18 })),
-                                React.createElement('span', { key: "current", className: "px-4 font-medium min-w-[120px] text-center" }, `${currentMonth.getFullYear()}年 ${currentMonth.getMonth() + 1}月`),
-                                React.createElement('button', { key: "next", onClick: () => changeMonth(1), className: "p-2 hover:bg-white/10 rounded-full transition-colors" }, React.createElement(ChevronRight, { size: 18 }))
-                            ]),
-                            React.createElement('button', { key: "export", onClick: exportToCSV, disabled: filteredExpenses.length === 0, className: "flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-[#141414] border border-white/10 rounded-full text-xs md:text-sm font-medium hover:bg-white hover:text-black transition-all disabled:opacity-50" }, [
-                                React.createElement(Download, { size: 14 }),
-                                React.createElement('span', { className: "hidden sm:inline" }, "CSV出力"),
-                                React.createElement('span', { className: "sm:hidden" }, "出力")
-                            ]),
-                            React.createElement('label', { key: "import", className: "flex-1 md:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-[#141414] border border-white/10 rounded-full text-xs md:text-sm font-medium hover:bg-white hover:text-black transition-all cursor-pointer" }, [
-                                React.createElement(Upload, { size: 14 }),
-                                React.createElement('span', { className: "hidden sm:inline" }, "CSVインポート"),
-                                React.createElement('span', { className: "sm:hidden" }, "読込"),
-                                React.createElement('input', { key: "file", type: "file", accept: ".csv", onChange: importFromCSV, className: "hidden" })
-                            ])
-                        ])
-                    ])
-                ),
+function startTimer(id) {
+  timerIntervals[id] = setInterval(() => {
+    const w  = workers.find(w => w.id === id);
+    if (!w || !w.working) { clearInterval(timerIntervals[id]); return; }
+    const el = document.getElementById('timer_' + id);
+    if (el) el.textContent = calcDuration(w.startTime, new Date().toISOString());
+  }, 1000);
+}
 
-                React.createElement('main', { key: "main", className: "max-w-7xl mx-auto px-6 py-12" }, [
-                    // Stats Grid
-                    React.createElement('div', { key: "stats", className: "grid grid-cols-1 md:grid-cols-3 gap-6 mb-12" }, [
-                        React.createElement(motion.div, { key: "cost", initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, className: "bg-[#141414] p-8 rounded-3xl border border-white/5 shadow-sm" }, [
-                            React.createElement('p', { className: "text-xs uppercase tracking-widest text-white/50 font-bold mb-2" }, "合計金額"),
-                            React.createElement('p', { className: "text-4xl font-light tracking-tighter" }, [totalCost.toLocaleString(), React.createElement('span', { className: "text-xl" }, " 円")])
-                        ]),
-                        React.createElement(motion.div, { key: "distance", initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { delay: 0.1 }, className: "bg-[#141414] p-8 rounded-3xl border border-white/5 shadow-sm" }, [
-                            React.createElement('p', { className: "text-xs uppercase tracking-widest text-white/50 font-bold mb-2" }, "合計距離"),
-                            React.createElement('p', { className: "text-4xl font-light tracking-tighter" }, [totalDistance.toFixed(1), React.createElement('span', { className: "text-xl" }, " km")])
-                        ]),
-                        React.createElement(motion.div, { key: "count", initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { delay: 0.2 }, className: "bg-white p-8 rounded-3xl text-black shadow-xl flex flex-col justify-between" }, [
-                            React.createElement('div', {}, [
-                                React.createElement('p', { className: "text-xs uppercase tracking-widest opacity-50 font-bold mb-2 text-black/50" }, "登録件数"),
-                                React.createElement('p', { className: "text-4xl font-light tracking-tighter" }, filteredExpenses.length)
-                            ]),
-                            React.createElement('button', { onClick: () => setIsFormOpen(true), className: "mt-4 flex items-center justify-center gap-2 w-full py-3 bg-black text-white rounded-2xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all" }, [
-                                React.createElement(Plus, { size: 20 }),
-                                "新規登録"
-                            ])
-                        ])
-                    ]),
+// ---- Render ----
+function render() { renderWorkers(); renderLogs(); }
 
-                    // View Toggle
-                    React.createElement('div', { key: "toggle", className: "flex flex-wrap items-center justify-between gap-4 mb-8" }, [
-                        React.createElement('div', { className: "flex gap-4" }, [
-                            React.createElement('button', { onClick: () => setViewMode('list'), className: `flex items-center gap-2 px-6 py-3 rounded-2xl font-bold transition-all ${viewMode === 'list' ? 'bg-white text-black shadow-lg' : 'bg-[#141414] text-white/40 hover:bg-white/5'}` }, [
-                                React.createElement(FileText, { size: 18 }),
-                                "明細一覧"
-                            ]),
-                            React.createElement('button', { onClick: () => setViewMode('summary'), className: `flex items-center gap-2 px-6 py-3 rounded-2xl font-bold transition-all ${viewMode === 'summary' ? 'bg-white text-black shadow-lg' : 'bg-[#141414] text-white/40 hover:bg-white/5'}` }, [
-                                React.createElement(BarChart3, { size: 18 }),
-                                "集計レポート"
-                            ])
-                        ]),
-                        React.createElement('div', { className: "flex items-center gap-4" }, [
-                            viewMode === 'summary' && React.createElement('button', { onClick: copySummaryToClipboard, className: "flex items-center gap-2 px-4 py-2 bg-[#141414] border border-white/10 rounded-full text-sm font-medium hover:bg-white hover:text-black transition-all" }, [
-                                isCopied ? React.createElement(Check, { size: 16, className: "text-green-500" }) : React.createElement(Copy, { size: 16 }),
-                                isCopied ? 'コピー完了' : 'レポートをコピー'
-                            ]),
-                            filterTag && React.createElement(motion.div, { initial: { opacity: 0, x: 20 }, animate: { opacity: 1, x: 0 }, className: "flex items-center gap-3 px-4 py-2 bg-white/5 rounded-full border border-white/10" }, [
-                                React.createElement('span', { className: "text-[10px] uppercase tracking-widest font-bold text-white/40" }, "フィルタ中:"),
-                                React.createElement('span', { className: "flex items-center gap-1 text-sm font-bold" }, [React.createElement(Tag, { size: 12 }), filterTag]),
-                                React.createElement('button', { onClick: () => setFilterTag(null), className: "p-1 hover:bg-white/10 rounded-full transition-colors" }, React.createElement(Plus, { size: 14, className: "rotate-45" }))
-                            ])
-                        ])
-                    ]),
+function renderWorkers() {
+  const tbody = document.getElementById('workersBody');
+  if (workers.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">作業者を追加してください</td></tr>';
+    return;
+  }
+  tbody.innerHTML = workers.map(w => `
+    <tr class="${w.working ? 'working-row' : ''}">
+      <td>${esc(w.vendor) || '<span style="color:#ccc">—</span>'}</td>
+      <td><strong>${esc(w.name)}</strong></td>
+      <td><span class="status-chip ${w.working ? 'status-working' : 'status-idle'}">${w.working ? '作業中' : '待機中'}</span></td>
+      <td class="timer-cell" id="timer_${w.id}">
+        ${w.working ? calcDuration(w.startTime, new Date().toISOString()) : '—'}
+      </td>
+      <td class="action-cell">
+        <button class="btn btn-start" onclick="startWork(${w.id})" ${w.working  ? 'disabled' : ''}>開始</button>
+        <button class="btn btn-end"   onclick="endWork(${w.id})"   ${!w.working ? 'disabled' : ''}>終了</button>
+        <button class="btn-remove" onclick="removeWorker(${w.id})" title="削除">✕</button>
+      </td>
+    </tr>
+  `).join('');
 
-                    viewMode === 'list' ? 
-                        React.createElement('div', { key: "list", className: "bg-[#141414] rounded-[2rem] border border-white/5 shadow-sm overflow-hidden" }, [
-                            React.createElement('div', { className: "p-8 border-b border-white/5 flex items-center justify-between" }, [
-                                React.createElement('div', { className: "flex items-center gap-4" }, [
-                                    React.createElement('h2', { className: "text-lg font-semibold" }, "月間ログ"),
-                                    React.createElement('span', { className: "text-sm text-white/40 font-medium" }, `${filteredExpenses.length} 件のデータ`)
-                                ]),
-                                expenses.length > 0 && React.createElement('button', { onClick: () => setIsClearModalOpen(true), className: "flex items-center gap-2 px-4 py-2 text-red-500/60 hover:text-red-500 hover:bg-red-500/10 rounded-full text-xs font-bold uppercase tracking-widest transition-all" }, [
-                                    React.createElement(Trash2, { size: 14 }),
-                                    "全データ削除"
-                                ])
-                            ]),
-                            React.createElement('div', { className: "overflow-x-auto" }, 
-                                React.createElement('table', { className: "w-full text-left border-collapse" }, [
-                                    React.createElement('thead', {}, 
-                                        React.createElement('tr', { className: "border-b border-white/5 bg-[#1F1F1F]" }, [
-                                            React.createElement('th', { className: "px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40" }, "区間 (出発地 → 目的地) / 備考"),
-                                            React.createElement('th', { className: "px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40" }, "手段"),
-                                            React.createElement('th', { className: "px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40" }, "タグ"),
-                                            React.createElement('th', { className: "px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40 text-right" }, "距離"),
-                                            React.createElement('th', { className: "px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40 text-right" }, "金額"),
-                                            React.createElement('th', { className: "px-8 py-4 text-[10px] uppercase tracking-widest font-bold text-white/40 text-center" }, "操作")
-                                        ])
-                                    ),
-                                    React.createElement('tbody', {}, 
-                                        React.createElement(AnimatePresence, { initial: false }, 
-                                            groupedExpenses.length === 0 ? 
-                                                React.createElement('tr', {}, React.createElement('td', { colSpan: 6, className: "px-8 py-20 text-center text-white/30 italic" }, "今月のデータはありません。「新規登録」から開始してください。")) :
-                                                groupedExpenses.map(([date, items]) => [
-                                                    React.createElement('tr', { key: `header-${date}`, className: "bg-white/5" }, 
-                                                        React.createElement('td', { colSpan: 6, className: "px-8 py-3 text-xs font-bold text-white/60 tracking-widest uppercase flex items-center gap-2" }, [
-                                                            React.createElement(CalendarIcon, { size: 12 }),
-                                                            date,
-                                                            React.createElement('span', { className: "ml-auto text-[10px] font-normal text-white/30" }, `${items.length} 件 | 合計 ${items.reduce((sum, i) => sum + i.cost, 0).toLocaleString()} 円`)
-                                                        ])
-                                                    ),
-                                                    ...items.map(expense => 
-                                                        React.createElement(motion.tr, { key: expense.id, initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0, x: -20 }, className: "group border-b border-white/5 hover:bg-white/5 transition-colors" }, [
-                                                            React.createElement('td', { className: "px-8 py-5 font-medium" }, [
-                                                                React.createElement('div', { className: "flex items-center gap-2" }, [
-                                                                    React.createElement('span', {}, expense.departure || '-'),
-                                                                    React.createElement(ArrowRight, { size: 12, className: "text-white/30" }),
-                                                                    React.createElement('span', {}, expense.destination)
-                                                                ]),
-                                                                expense.note && React.createElement('span', { className: "block text-[10px] text-white/40 font-normal mt-0.5" }, expense.note)
-                                                            ]),
-                                                            React.createElement('td', { className: "px-8 py-5" }, 
-                                                                React.createElement('div', { className: "flex items-center gap-2 text-sm" }, [
-                                                                    React.createElement('span', { className: "p-1.5 bg-white/5 rounded-lg" }, getMethodIcon(expense.method)),
-                                                                    expense.method,
-                                                                    RECEIPT_REQUIRED_METHODS.includes(expense.method) && React.createElement('span', { className: "text-[10px] text-red-500 font-bold bg-red-950/30 px-1.5 py-0.5 rounded border border-red-900/50" }, "領収書要")
-                                                                ])
-                                                            ),
-                                                            React.createElement('td', { className: "px-8 py-5" }, 
-                                                                expense.tagId ? React.createElement('span', { className: "inline-flex items-center gap-1 px-2 py-1 bg-white/5 rounded-md text-[10px] font-bold uppercase tracking-wider" }, [React.createElement(Tag, { size: 10 }), expense.tagId]) : React.createElement('span', { className: "text-white/20 text-[10px]" }, "-")
-                                                            ),
-                                                            React.createElement('td', { className: "px-8 py-5 text-right font-mono text-sm" }, expense.method === '宿泊費' ? '-' : `${expense.distance} km`),
-                                                            React.createElement('td', { className: "px-8 py-5 text-right font-semibold" }, `${expense.cost.toLocaleString()} 円`),
-                                                            React.createElement('td', { className: "px-8 py-5 text-center" }, 
-                                                                React.createElement('button', { onClick: () => handleDeleteExpense(expense.id), className: "p-2 text-white/20 hover:text-red-500 transition-colors" }, React.createElement(Trash2, { size: 16 }))
-                                                            )
-                                                        ])
-                                                    )
-                                                ])
-                                        )
-                                    )
-                                ])
-                            )
-                        ]) :
-                        React.createElement('div', { key: "summary", className: "space-y-8" }, 
-                            React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-8" }, [
-                                // Tag Summary
-                                React.createElement('div', { className: "bg-[#141414] rounded-[2rem] border border-white/5 shadow-sm overflow-hidden" }, [
-                                    React.createElement('div', { className: "p-8 border-b border-white/5" }, React.createElement('h2', { className: "text-lg font-semibold" }, "タグ別集計 (ノート)")),
-                                    React.createElement('div', { className: "p-8" }, 
-                                        tagSummaries.length === 0 ? 
-                                            React.createElement('p', { className: "text-center text-white/30 italic py-10" }, "データがありません") :
-                                            React.createElement('div', { className: "space-y-4" }, 
-                                                tagSummaries.map(summary => 
-                                                    React.createElement('button', { key: summary.tag, onClick: () => { setFilterTag(summary.tag === '未分類' ? null : summary.tag); setViewMode('list'); }, className: "w-full flex items-center justify-between p-4 bg-[#1F1F1F] rounded-2xl hover:bg-white/5 transition-all text-left group" }, [
-                                                        React.createElement('div', {}, [
-                                                            React.createElement('div', { className: "flex items-center gap-2 mb-1" }, [React.createElement(Tag, { size: 14, className: "text-white/40" }), React.createElement('span', { className: "font-bold" }, summary.tag)]),
-                                                            React.createElement('p', { className: "text-[10px] text-white/40 uppercase tracking-widest font-bold" }, `${summary.count} 件の明細`)
-                                                        ]),
-                                                        React.createElement('div', { className: "text-right" }, [
-                                                            React.createElement('p', { className: "text-xl font-light tracking-tighter group-hover:scale-110 transition-transform origin-right" }, `${summary.cost.toLocaleString()} 円`),
-                                                            summary.distance > 0 && React.createElement('p', { className: "text-[10px] text-white/40 font-bold" }, `${summary.distance.toFixed(1)} km`)
-                                                        ])
-                                                    ])
-                                                )
-                                            )
-                                    )
-                                ]),
-                                // Date Summary
-                                React.createElement('div', { className: "bg-[#141414] rounded-[2rem] border border-white/5 shadow-sm overflow-hidden" }, [
-                                    React.createElement('div', { className: "p-8 border-b border-white/5" }, React.createElement('h2', { className: "text-lg font-semibold" }, "日別集計 (今月)")),
-                                    React.createElement('div', { className: "p-8" }, 
-                                        dateSummaries.length === 0 ? 
-                                            React.createElement('p', { className: "text-center text-white/30 italic py-10" }, "データがありません") :
-                                            React.createElement('div', { className: "space-y-4" }, 
-                                                dateSummaries.map(([date, data]) => 
-                                                    React.createElement('div', { key: date, className: "flex items-center justify-between p-4 bg-[#1F1F1F] rounded-2xl" }, [
-                                                        React.createElement('div', {}, [
-                                                            React.createElement('p', { className: "font-mono font-bold" }, date),
-                                                            React.createElement('p', { className: "text-[10px] text-white/40 uppercase tracking-widest font-bold" }, `${data.count} 件`)
-                                                        ]),
-                                                        React.createElement('p', { className: "text-xl font-light tracking-tighter" }, `${data.cost.toLocaleString()} 円`)
-                                                    ])
-                                                )
-                                            )
-                                    )
-                                ]),
-                                // Monthly Summary
-                                React.createElement('div', { className: "bg-[#141414] rounded-[2rem] border border-white/5 shadow-sm overflow-hidden" }, [
-                                    React.createElement('div', { className: "p-8 border-b border-white/5" }, React.createElement('h2', { className: "text-lg font-semibold" }, "月別集計 (全期間)")),
-                                    React.createElement('div', { className: "p-8" }, 
-                                        monthlySummaries.length === 0 ? 
-                                            React.createElement('p', { className: "text-center text-white/30 italic py-10" }, "データがありません") :
-                                            React.createElement('div', { className: "space-y-4" }, 
-                                                monthlySummaries.map(([month, data]) => 
-                                                    React.createElement('div', { key: month, className: "flex items-center justify-between p-4 bg-[#1F1F1F] rounded-2xl" }, [
-                                                        React.createElement('div', {}, [
-                                                            React.createElement('p', { className: "font-bold" }, month),
-                                                            React.createElement('p', { className: "text-[10px] text-white/40 uppercase tracking-widest font-bold" }, `${data.count} 件`)
-                                                        ]),
-                                                        React.createElement('p', { className: "text-xl font-light tracking-tighter" }, `${data.cost.toLocaleString()} 円`)
-                                                    ])
-                                                )
-                                            )
-                                    )
-                                ])
-                            ])
-                        )
-                ]),
+  workers.forEach(w => {
+    if (w.working && !timerIntervals[w.id]) startTimer(w.id);
+  });
+}
 
-                // Modals
-                React.createElement(AnimatePresence, { key: "modals" }, [
-                    isClearModalOpen && React.createElement('div', { key: "clear-modal", className: "fixed inset-0 z-[60] flex items-center justify-center p-6" }, [
-                        React.createElement(motion.div, { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, onClick: () => setIsClearModalOpen(false), className: "absolute inset-0 bg-black/80 backdrop-blur-md" }),
-                        React.createElement(motion.div, { initial: { opacity: 0, scale: 0.9, y: 20 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.9, y: 20 }, className: "relative w-full max-w-md max-h-[90vh] bg-[#141414] border border-white/10 rounded-[2.5rem] shadow-2xl overflow-y-auto" }, 
-                            React.createElement('div', { className: "p-6 md:p-10 text-center" }, [
-                                React.createElement('div', { className: "w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6" }, React.createElement(Trash2, { size: 32, className: "text-red-500" })),
-                                React.createElement('h3', { className: "text-xl font-bold mb-2" }, "全データを削除しますか？"),
-                                React.createElement('p', { className: "text-white/40 text-sm mb-8 leading-relaxed" }, ["これまでに登録されたすべてのレコードが完全に削除されます。", React.createElement('br'), "この操作は取り消すことができません。"]),
-                                React.createElement('div', { className: "flex flex-col gap-3" }, [
-                                    React.createElement('button', { onClick: handleClearAll, className: "w-full py-4 bg-red-500 text-white rounded-2xl font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-500/20" }, "削除を確定する"),
-                                    React.createElement('button', { onClick: () => setIsClearModalOpen(false), className: "w-full py-4 bg-white/5 text-white/60 rounded-2xl font-bold hover:bg-white/10 transition-all" }, "キャンセル")
-                                ])
-                            ])
-                        )
-                    ]),
+function renderLogs() {
+  const tbody = document.getElementById('logBody');
+  const empty = document.getElementById('emptyMsg');
+  if (logs.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = logs.map((l, i) => `
+    <tr>
+      <td>${esc(l.vendor) || '<span style="color:#ccc">—</span>'}</td>
+      <td>${esc(l.name)}</td>
+      <td>${formatTime(l.startTime)}</td>
+      <td>${formatTime(l.endTime)}</td>
+      <td><span class="duration-chip">${esc(l.duration)}</span></td>
+      <td><button class="btn-remove" onclick="openLogEdit(${i})" title="時刻を修正" style="color:#aaa;font-size:0.85rem;">✎</button></td>
+    </tr>
+  `).join('');
+}
 
-                    isFormOpen && React.createElement('div', { key: "form-modal", className: "fixed inset-0 z-50 flex items-center justify-center p-6" }, [
-                        React.createElement(motion.div, { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, onClick: () => setIsFormOpen(false), className: "absolute inset-0 bg-black/60 backdrop-blur-sm" }),
-                        React.createElement(motion.div, { initial: { opacity: 0, scale: 0.95, y: 20 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.95, y: 20 }, className: "relative w-full max-w-lg max-h-[90vh] bg-[#141414] rounded-[2.5rem] shadow-2xl overflow-y-auto border border-white/10" }, 
-                            React.createElement('div', { className: "p-6 md:p-10" }, [
-                                React.createElement('div', { className: "flex items-center justify-between mb-8" }, [
-                                    React.createElement('h2', { className: "text-2xl font-bold tracking-tight" }, "新規交通費登録"),
-                                    method === '走行距離' && React.createElement('span', { className: "px-3 py-1 bg-white text-black text-[10px] font-bold rounded-full uppercase tracking-widest" }, `自動計算中 (¥${CAR_REIMBURSEMENT_RATE}/km)`)
-                                ]),
-                                React.createElement('form', { onSubmit: handleAddExpense, className: "space-y-6" }, [
-                                    React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-6" }, [
-                                        React.createElement('div', { className: "space-y-2" }, [
-                                            React.createElement('label', { className: "text-[10px] uppercase tracking-widest font-bold text-white/40 ml-1" }, "日付"),
-                                            React.createElement('div', { className: "relative" }, [
-                                                React.createElement(CalendarIcon, { className: "absolute left-4 top-1/2 -translate-y-1/2 text-white/30", size: 16 }),
-                                                React.createElement('input', { type: "date", required: true, value: date, onChange: (e) => setDate(e.target.value), className: "w-full pl-12 pr-4 py-3 bg-[#1F1F1F] border-none rounded-2xl focus:ring-2 focus:ring-white transition-all text-white" })
-                                            ])
-                                        ]),
-                                        React.createElement('div', { className: "space-y-2" }, [
-                                            React.createElement('label', { className: "text-[10px] uppercase tracking-widest font-bold text-white/40 ml-1" }, "移動手段"),
-                                            React.createElement('select', { value: method, onChange: (e) => setMethod(e.target.value), className: "w-full px-4 py-3 bg-[#1F1F1F] border-none rounded-2xl focus:ring-2 focus:ring-white transition-all appearance-none text-white" }, 
-                                                TRANSPORTATION_METHODS.map(m => React.createElement('option', { key: m, value: m }, m))
-                                            ),
-                                            RECEIPT_REQUIRED_METHODS.includes(method) && React.createElement('p', { className: "text-[10px] text-red-500 font-bold mt-1 ml-1 animate-pulse" }, "※領収書の提出が必要です")
-                                        ])
-                                    ]),
-                                    React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-6" }, [
-                                        React.createElement('div', { className: "space-y-2" }, [
-                                            React.createElement('label', { className: "text-[10px] uppercase tracking-widest font-bold text-white/40 ml-1" }, "出発地"),
-                                            React.createElement('div', { className: "relative" }, [
-                                                React.createElement(MapPin, { className: "absolute left-4 top-1/2 -translate-y-1/2 text-white/30", size: 16 }),
-                                                React.createElement('input', { type: "text", required: method !== '宿泊費', disabled: method === '宿泊費', placeholder: method === '宿泊費' ? '宿泊費のため無効' : "例: 自宅、オフィス", value: departure, onChange: (e) => setDeparture(e.target.value), className: `w-full pl-12 pr-4 py-3 border-none rounded-2xl focus:ring-2 focus:ring-white transition-all ${method === '宿泊費' ? 'bg-white/5 text-white/50 cursor-not-allowed' : 'bg-[#1F1F1F] text-white'}` })
-                                            ])
-                                        ]),
-                                        React.createElement('div', { className: "space-y-2" }, [
-                                            React.createElement('label', { className: "text-[10px] uppercase tracking-widest font-bold text-white/40 ml-1" }, "目的地"),
-                                            React.createElement('div', { className: "relative" }, [
-                                                React.createElement(MapPin, { className: "absolute left-4 top-1/2 -translate-y-1/2 text-white/30", size: 16 }),
-                                                React.createElement('input', { type: "text", required: true, placeholder: method === '宿泊費' ? '例: ホテル名' : '例: オフィス、クライアント先', value: destination, onChange: (e) => setDestination(e.target.value), className: "w-full pl-12 pr-4 py-3 bg-[#1F1F1F] border-none rounded-2xl focus:ring-2 focus:ring-white transition-all text-white" })
-                                            ])
-                                        ])
-                                    ]),
-                                    React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-6" }, [
-                                        React.createElement('div', { className: "space-y-2" }, [
-                                            React.createElement('label', { className: "text-[10px] uppercase tracking-widest font-bold text-white/40 ml-1" }, "距離 (km)"),
-                                            React.createElement('input', { type: "number", step: "0.1", placeholder: "0.0", value: distance, disabled: ['電車', 'バス', 'タクシー', '宿泊費'].includes(method), onChange: (e) => setDistance(e.target.value), className: `w-full px-4 py-3 border-none rounded-2xl focus:ring-2 focus:ring-white transition-all ${['電車', 'バス', 'タクシー', '宿泊費'].includes(method) ? 'bg-white/5 text-white/50 cursor-not-allowed' : 'bg-[#1F1F1F] text-white'}` })
-                                        ]),
-                                        React.createElement('div', { className: "space-y-2" }, [
-                                            React.createElement('label', { className: "text-[10px] uppercase tracking-widest font-bold text-white/40 ml-1" }, "金額 (円)"),
-                                            React.createElement('div', { className: "relative" }, [
-                                                React.createElement(JapaneseYen, { className: "absolute left-4 top-1/2 -translate-y-1/2 text-white/30", size: 16 }),
-                                                React.createElement('input', { type: "number", required: true, placeholder: "0", value: cost, readOnly: method === '走行距離', onChange: (e) => setCost(e.target.value), className: `w-full pl-12 pr-4 py-3 border-none rounded-2xl focus:ring-2 focus:ring-white transition-all ${method === '走行距離' ? 'bg-white/5 text-white/50 cursor-not-allowed' : 'bg-[#1F1F1F] text-white'}` })
-                                            ])
-                                        ])
-                                    ]),
-                                    React.createElement('div', { className: "space-y-2" }, [
-                                        React.createElement('label', { className: "text-[10px] uppercase tracking-widest font-bold text-white/40 ml-1" }, "タグID / ノート名 (任意)"),
-                                        React.createElement('div', { className: "relative" }, [
-                                            React.createElement(Tag, { className: "absolute left-4 top-1/2 -translate-y-1/2 text-white/30", size: 16 }),
-                                            React.createElement('input', { type: "text", placeholder: "例: プロジェクトA、出張2024", value: tagId, list: "tag-suggestions", onChange: (e) => setTagId(e.target.value), className: "w-full pl-12 pr-4 py-3 bg-[#1F1F1F] border-none rounded-2xl focus:ring-2 focus:ring-white transition-all text-white" }),
-                                            React.createElement('datalist', { id: "tag-suggestions" }, uniqueTags.map(tag => React.createElement('option', { key: tag, value: tag })))
-                                        ])
-                                    ]),
-                                    React.createElement('div', { className: "space-y-2" }, [
-                                        React.createElement('label', { className: "text-[10px] uppercase tracking-widest font-bold text-white/40 ml-1" }, "備考 (任意)"),
-                                        React.createElement('textarea', { placeholder: "詳細を入力...", value: note, onChange: (e) => setNote(e.target.value), className: "w-full px-4 py-3 bg-[#1F1F1F] border-none rounded-2xl focus:ring-2 focus:ring-white transition-all h-24 resize-none text-white" })
-                                    ]),
-                                    React.createElement('div', { className: "flex gap-4 pt-4" }, [
-                                        React.createElement('button', { type: "button", onClick: () => setIsFormOpen(false), className: "flex-1 py-4 bg-[#1F1F1F] text-white rounded-2xl font-bold hover:bg-white/10 transition-all" }, "キャンセル"),
-                                        React.createElement('button', { type: "submit", className: "flex-1 py-4 bg-white text-black rounded-2xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg" }, "保存")
-                                    ])
-                                ])
-                            ])
-                        )
-                    ])
-                ])
-            ]);
-        }
+// ---- Print ----
+function printReport() {
+  const sign     = localStorage.getItem('wm_sign');
+  const signedAt = localStorage.getItem('wm_signedAt');
+  const signedAtStr = signedAt
+    ? `<div style="font-size:8pt;color:#555;margin-top:4pt;">署名日時：${new Date(signedAt).toLocaleString('ja-JP')}</div>`
+    : '';
+  const signHtml = sign
+    ? `<img src="${sign}" />`
+    : '<span style="color:#bbb;font-size:8pt;">サインなし</span>';
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(React.createElement(App));
-    </script>
+  const logRows = logs.length === 0
+    ? '<tr><td colspan="5" style="text-align:center;color:#aaa;">記録なし</td></tr>'
+    : logs.map(l => `
+        <tr>
+          <td>${esc(l.vendor) || '—'}</td>
+          <td>${esc(l.name)}</td>
+          <td>${formatTime(l.startTime)}</td>
+          <td>${formatTime(l.endTime)}</td>
+          <td>${esc(l.duration)}</td>
+        </tr>`).join('');
+
+  document.getElementById('printArea').innerHTML = `
+    <div class="p-title">作業記録</div>
+
+    <div class="p-section">
+      <div class="p-section-title">作業情報</div>
+      <div class="p-info-grid">
+        <div class="p-info-item">
+          <div class="p-info-label">作業日</div>
+          <div class="p-info-value">${esc(info.date || '—')}</div>
+        </div>
+        <div class="p-info-item">
+          <div class="p-info-label">作業場所</div>
+          <div class="p-info-value">${esc(info.location || '—')}</div>
+        </div>
+        <div class="p-info-item">
+          <div class="p-info-label">リーダー</div>
+          <div class="p-info-value">${esc(info.leader || '—')}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-section">
+      <div class="p-section-title">作業記録ログ</div>
+      <table>
+        <thead>
+          <tr>
+            <th>業者名</th><th>作業者名</th><th>開始時刻</th><th>終了時刻</th><th>作業時間</th>
+          </tr>
+        </thead>
+        <tbody>${logRows}</tbody>
+      </table>
+    </div>
+
+    <div class="p-section">
+      <div class="p-section-title">サイン</div>
+      <div class="p-sign-row">
+        <div>
+          <div class="p-sign-label">署名</div>
+          <div class="p-sign-box">${signHtml}</div>
+          ${signedAtStr}
+        </div>
+        <div style="flex:1">
+          <div class="p-sign-label">リーダー名</div>
+          <div style="font-size:11pt;font-weight:bold;">${esc(info.leader || '—')}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-footer">印刷日時：${new Date().toLocaleString('ja-JP')}</div>
+  `;
+  window.print();
+}
+
+// ---- Log Edit ----
+let editingLogIdx = -1;
+
+function toLocalDatetimeValue(iso) {
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function openLogEdit(idx) {
+  editingLogIdx = idx;
+  const l = logs[idx];
+  document.getElementById('editStart').value = toLocalDatetimeValue(l.startTime);
+  document.getElementById('editEnd').value   = toLocalDatetimeValue(l.endTime);
+  const ov = document.getElementById('logEditOverlay');
+  ov.style.display = 'flex';
+}
+
+function closeLogEdit() {
+  document.getElementById('logEditOverlay').style.display = 'none';
+  editingLogIdx = -1;
+}
+
+function saveLogEdit() {
+  const startVal = document.getElementById('editStart').value;
+  const endVal   = document.getElementById('editEnd').value;
+  if (!startVal || !endVal) { alert('開始・終了時刻を入力してください'); return; }
+  const startISO = new Date(startVal).toISOString();
+  const endISO   = new Date(endVal).toISOString();
+  if (new Date(endISO) <= new Date(startISO)) { alert('終了時刻は開始時刻より後にしてください'); return; }
+  logs[editingLogIdx].startTime = startISO;
+  logs[editingLogIdx].endTime   = endISO;
+  logs[editingLogIdx].duration  = calcDuration(startISO, endISO);
+  save();
+  render();
+  closeLogEdit();
+}
+
+// ---- CSV ----
+function downloadCSV() {
+  if (logs.length === 0) { alert('記録がありません'); return; }
+  const meta = [
+    `作業日,${info.date || ''}`,
+    `作業場所,${info.location || ''}`,
+    `リーダー,${info.leader || ''}`,
+    '',
+    '業者名,作業者名,開始時刻,終了時刻,作業時間'
+  ].join('\n');
+  const rows = logs.map(l =>
+    [l.vendor, l.name, formatTime(l.startTime), formatTime(l.endTime), l.duration]
+    .map(v => `"${String(v).replace(/"/g,'""')}"`)
+    .join(',')
+  ).join('\n');
+  const blob = new Blob(['\uFEFF' + meta + '\n' + rows], { type: 'text/csv;charset=utf-8' });
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: '作業記録_' + (info.date || dateStr()) + '.csv'
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function clearLogs() {
+  if (!confirm('すべての記録を削除しますか？')) return;
+  logs = [];
+  save();
+  render();
+}
+
+// ---- Utils ----
+function save() {
+  localStorage.setItem('wm_workers', JSON.stringify(workers));
+  localStorage.setItem('wm_logs',    JSON.stringify(logs));
+}
+
+function calcDuration(start, end) {
+  const diff = Math.floor((new Date(end) - new Date(start)) / 1000);
+  const h = Math.floor(diff / 3600);
+  const m = Math.floor((diff % 3600) / 60);
+  const s = diff % 60;
+  return h > 0
+    ? `${h}時間${String(m).padStart(2,'0')}分${String(s).padStart(2,'0')}秒`
+    : `${m}分${String(s).padStart(2,'0')}秒`;
+}
+
+function formatTime(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('ja-JP', {
+    month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit'
+  });
+}
+
+function dateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+render();
+</script>
 </body>
 </html>
